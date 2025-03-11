@@ -1,0 +1,6 @@
+@WebFormManager.API_HostAddress = http://localhost:5268
+
+GET {{WebFormManager.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
