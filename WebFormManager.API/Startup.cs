@@ -1,7 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using FluentValidation;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using WebFormManager.API.Middlewares;
+using WebFormManager.Application.Validation;
+using WebFormManager.Domain.Entities;
 using WebFormManager.Infrastructure;
 
 namespace WebFormManager.API;
@@ -18,8 +20,8 @@ public class Startup
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddControllers();
-        services.AddDbContext<ApplicationDbContext>(options => 
-            options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
+        // services.AddDbContext<ApplicationDbContext>(options => 
+        //     options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
 
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>
@@ -31,8 +33,10 @@ public class Startup
                 Description = "WebForm management application"
             });
         });
-
-        services.AddTransient<ExceptionHandlingMiddleware>();
+        
+        services.AddPersistenceServices(Configuration);
+        
+        services.AddValidatorsFromAssemblyContaining<FormSubmission>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -48,6 +52,8 @@ public class Startup
         
         app.UseHttpsRedirection();
 
+        app.UseSerilogRequestLogging();
+        
         app.UseRouting();
         
         app.UseEndpoints(endpoints =>
