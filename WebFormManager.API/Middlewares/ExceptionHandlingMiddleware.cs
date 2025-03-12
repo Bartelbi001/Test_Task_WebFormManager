@@ -1,6 +1,8 @@
 ﻿using System.Net;
 using System.Text.Json;
 using Serilog;
+using WebFormManager.Domain.Exceptions;
+using WebFormManager.Infrastructure.Exceptions;
 
 namespace WebFormManager.API.Middlewares;
 
@@ -19,9 +21,17 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
+        catch (DomainValidationException ex)
+        {
+            await HandleExceptionAsync(context, ex, HttpStatusCode.BadRequest, "Validation failed.");
+        }
         catch (InvalidOperationException exception)
         {
             await HandleExceptionAsync(context, exception, HttpStatusCode.Conflict, "Data conflict.");
+        }
+        catch (FileStorageException ex)
+        {
+            await HandleExceptionAsync(context, ex, HttpStatusCode.InternalServerError, "File storage error.");
         }
         catch (Exception exception)
         {
@@ -29,7 +39,7 @@ public class ExceptionHandlingMiddleware
         }
     }
 
-    private Task HandleExceptionAsync(HttpContext context, Exception exception, HttpStatusCode statusCode,
+    private async Task HandleExceptionAsync(HttpContext context, Exception exception, HttpStatusCode statusCode,
         string message)
     {
         context.Response.StatusCode = (int)statusCode;
@@ -50,6 +60,6 @@ public class ExceptionHandlingMiddleware
             Log.Error(exception, "An error has occurred: {Message}", exception.Message);
         }
 
-        return context.Response.WriteAsync(JsonSerializer.Serialize(response));
+        await context.Response.WriteAsync(JsonSerializer.Serialize(response));
     }
 }
