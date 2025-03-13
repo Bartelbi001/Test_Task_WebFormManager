@@ -20,8 +20,6 @@ public class Startup
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddControllers();
-        // services.AddDbContext<ApplicationDbContext>(options => 
-        //     options.UseNpgsql(Configuration.GetConnectionString("DefaultConnection")));
 
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>
@@ -36,7 +34,7 @@ public class Startup
         
         services.AddPersistenceServices(Configuration);
         
-        services.AddValidatorsFromAssemblyContaining<FormSubmission>();
+        services.AddValidatorsFromAssemblyContaining<FormSubmissionRequestValidator>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
