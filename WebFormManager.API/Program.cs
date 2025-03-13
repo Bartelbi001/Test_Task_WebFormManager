@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Diagnostics;
-
 using Serilog;
 using WebFormManager.API;
 
