@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text.Json;
 using Serilog;
+using WebFormManager.API.Exceptions;
 using WebFormManager.Domain.Exceptions;
 using WebFormManager.Infrastructure.Exceptions;
 
@@ -32,6 +33,10 @@ public class ExceptionHandlingMiddleware
         catch (FileStorageException ex)
         {
             await HandleExceptionAsync(context, ex, HttpStatusCode.InternalServerError, "File storage error.");
+        }
+        catch (ApiValidationException ex)
+        {
+            await HandleExceptionAsync(context, ex, HttpStatusCode.BadRequest, "Api validation failed.");
         }
         catch (Exception exception)
         {
