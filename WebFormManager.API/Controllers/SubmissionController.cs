@@ -1,9 +1,9 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using WebFormManager.API.Exceptions;
 using WebFormManager.Application.Contracts.Persistence;
-using WebFormManager.Application.Validation;
-using WebFormManager.Domain.Entities;
-using WebFormManager.Domain.Exceptions;
+using WebFormManager.Application.DTOs;
+using WebFormManager.Application.Mapping;
 
 namespace WebFormManager.API.Controllers;
 
@@ -12,9 +12,9 @@ namespace WebFormManager.API.Controllers;
 public class SubmissionController : ControllerBase
 {
     private readonly ISubmissionStorage _storage;
-    private readonly IValidator<FormSubmission> _validator;
+    private readonly IValidator<FormSubmissionRequest> _validator;
 
-    public SubmissionController(ISubmissionStorage storage, IValidator<FormSubmission> validator)
+    public SubmissionController(ISubmissionStorage storage, IValidator<FormSubmissionRequest> validator)
     {
         _storage = storage;
         _validator = validator;
@@ -24,16 +24,18 @@ public class SubmissionController : ControllerBase
     /// Submitting a new form
     /// </summary>
     [HttpPost]
-    public async Task<IActionResult> Submit([FromBody] FormSubmission submission, CancellationToken cancellationToken)
+    public async Task<IActionResult> Submit([FromBody] FormSubmissionRequest request, CancellationToken cancellationToken = default)
     {
-        var validationResult = await _validator.ValidateAsync(submission, cancellationToken);
+        var validationResult = await _validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            throw new DomainValidationException(validationResult.Errors.First().ErrorMessage);
+            throw new ApiValidationException(validationResult.Errors.First().ErrorMessage);
         }
-        
+
+        var submission = request.ToDomain();
         await _storage.SaveAsync(submission);
-        return Ok(submission);
+
+        return Ok(submission.ToResponse());
     }
 
     /// <summary>
@@ -43,6 +45,6 @@ public class SubmissionController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var submissions = await _storage.GetAllAsync();
-        return Ok(submissions);
+        return Ok(submissions.ToResponseList());
     }
 }
