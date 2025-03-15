@@ -1,9 +1,12 @@
-﻿using FluentValidation;
+﻿using System.Text.Encodings.Web;
+using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using WebFormManager.API.Interfaces;
 using WebFormManager.API.Middlewares;
-using WebFormManager.Application.Validation;
-using WebFormManager.Domain.Entities;
+using WebFormManager.API.Validation;
 using WebFormManager.Infrastructure;
 
 namespace WebFormManager.API;
@@ -31,10 +34,26 @@ public class Startup
                 Description = "WebForm management application"
             });
         });
+
+        services.Configure<IISServerOptions>(options =>
+        {
+            options.MaxRequestBodySize = 1 * 1024 * 1024;
+        });
+
+        services.Configure<KestrelServerOptions>(options =>
+        {
+            options.Limits.MaxRequestBodySize = 1 * 1024 * 1024;
+        });
+
+        services.Configure<JsonOptions>(options =>
+        {
+            options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+            options.JsonSerializerOptions.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+        });
         
         services.AddPersistenceServices(Configuration);
         
-        services.AddValidatorsFromAssemblyContaining<FormSubmissionRequestValidator>();
+        services.AddScoped<ISubmissionValidator, SubmissionValidator>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -47,6 +66,8 @@ public class Startup
         }
 
         app.UseMiddleware<ExceptionHandlingMiddleware>();
+        app.UseMiddleware<JsonResponseMiddleware>();
+        app.UseMiddleware<RequestSizeLimitMiddleware>();
         
         app.UseHttpsRedirection();
 
