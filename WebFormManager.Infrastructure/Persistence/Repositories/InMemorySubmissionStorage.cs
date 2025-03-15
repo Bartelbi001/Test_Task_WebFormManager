@@ -1,25 +1,50 @@
-﻿using Serilog;
+﻿using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
+using Serilog;
 using WebFormManager.Application.Contracts.Persistence;
-using WebFormManager.Domain.Entities;
 
 namespace WebFormManager.Infrastructure.Persistence;
 
 public class InMemorySubmissionStorage : ISubmissionStorage
 {
-    private readonly List<FormSubmission> _submissions = new();
+    private readonly ConcurrentBag<JsonElement> _submissions = new(); // ✅ Потокобезопасная коллекция
     
-    public Task SaveAsync(FormSubmission submission)
+    public Task SaveAsync(JsonElement submission, CancellationToken cancellationToken)
     {
-        Log.Information("Saving file to InMemory.");
+        cancellationToken.ThrowIfCancellationRequested(); // ✅ Обрабатываем отмену
+
+        Log.Information("Saving submission to InMemory storage.");
         
         _submissions.Add(submission);
         return Task.CompletedTask;
     }
 
-    public Task<List<FormSubmission>> GetAllAsync()
+    public async IAsyncEnumerable<JsonElement> GetAllAsync(CancellationToken cancellationToken)
     {
-        Log.Information("Loading file from InMemory.");
+        cancellationToken.ThrowIfCancellationRequested(); // ✅ Обрабатываем отмену
+
+        Log.Information("Loading submissions from InMemory storage.");
         
-        return Task.FromResult(_submissions.ToList());
+        foreach (var submission in _submissions)
+        {
+            cancellationToken.ThrowIfCancellationRequested(); // ✅ Проверяем отмену в цикле
+            yield return submission;
+            await Task.Yield(); // ✅ Позволяем обработку других задач в асинхронном контексте
+        }
+    }
+
+    public async IAsyncEnumerable<JsonElement> SearchAsync(string query, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        foreach (var submission in _submissions)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (submission.ToString().Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                yield return submission;
+                await Task.Yield();
+            }
+        }
     }
 }
