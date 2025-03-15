@@ -1,51 +1,60 @@
 ﻿using System.Net;
 using System.Text.Json;
 using Serilog;
-using WebFormManager.API.Exceptions;
-using WebFormManager.Domain.Exceptions;
 using WebFormManager.Infrastructure.Exceptions;
+using ValidationException = FluentValidation.ValidationException;
 
 namespace WebFormManager.API.Middlewares;
 
 public class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly IWebHostEnvironment _env;
 
-    public ExceptionHandlingMiddleware(RequestDelegate next)
+    public ExceptionHandlingMiddleware(RequestDelegate next, IWebHostEnvironment env)
     {
         _next = next;
+        _env = env;
     }
 
     public async Task Invoke(HttpContext context)
     {
         try
         {
+            Log.Information("Handling request: {Method} {Path}", context.Request.Method, context.Request.Path);
             await _next(context);
         }
-        catch (DomainValidationException ex)
+        catch (InvalidOperationException ex)
         {
-            await HandleExceptionAsync(context, ex, HttpStatusCode.BadRequest, "Validation failed.");
-        }
-        catch (InvalidOperationException exception)
-        {
-            await HandleExceptionAsync(context, exception, HttpStatusCode.Conflict, "Data conflict.");
+            await HandleExceptionAsync(context, ex, HttpStatusCode.Conflict, "Data conflict.");
         }
         catch (FileStorageException ex)
         {
             await HandleExceptionAsync(context, ex, HttpStatusCode.InternalServerError, "File storage error.");
         }
-        catch (ApiValidationException ex)
+        catch (JsonException ex)
         {
-            await HandleExceptionAsync(context, ex, HttpStatusCode.BadRequest, "Api validation failed.");
+            await HandleExceptionAsync(context, ex, HttpStatusCode.InternalServerError, "Json error.");
         }
-        catch (Exception exception)
+        catch (ValidationException ex)
         {
-            await HandleExceptionAsync(context, exception, HttpStatusCode.InternalServerError, "Internal server error.");
+            var errors = ex.Errors.Select(e => new { e.PropertyName, e.ErrorMessage }).ToList();
+            var response = new { Message = "Validation failed.", Errors = errors };
+    
+            Log.Warning("Validation failed on {Path}: {@Errors}", context.Request.Path, errors);
+    
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+        }
+        catch (Exception ex)
+        {
+            await HandleExceptionAsync(context, ex, HttpStatusCode.InternalServerError, "Internal server error.");
         }
     }
 
     private async Task HandleExceptionAsync(HttpContext context, Exception exception, HttpStatusCode statusCode,
-        string message)
+        string message, IReadOnlyList<string>? errors = null)
     {
         context.Response.StatusCode = (int)statusCode;
         context.Response.ContentType = "application/json";
@@ -53,17 +62,10 @@ public class ExceptionHandlingMiddleware
         var response = new
         {
             Message = message,
-            Details = exception.Message
+            Details = _env.IsDevelopment() ? exception.ToString() : exception.Message
         };
 
-        if (statusCode == HttpStatusCode.InternalServerError)
-        {
-            Log.Fatal(exception, "Fatal exception: {Message}", exception.Message);
-        }
-        else
-        {
-            Log.Error(exception, "An error has occurred: {Message}", exception.Message);
-        }
+        Log.Error(exception, "An error has occurred: {Message}", exception.Message);
 
         await context.Response.WriteAsync(JsonSerializer.Serialize(response));
     }
