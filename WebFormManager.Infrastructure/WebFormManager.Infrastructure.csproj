@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WebFormManager.Application\WebFormManager.Application.csproj" />
-    <ProjectReference Include="..\WebFormManager.Domain\WebFormManager.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>
