@@ -50,10 +50,19 @@ public class Startup
             options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.JsonSerializerOptions.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
         });
-        
+
         services.AddPersistenceServices(Configuration);
         
         services.AddScoped<ISubmissionValidator, SubmissionValidator>();
+        
+        services.AddCors(options =>
+        {
+            options.AddPolicy("AllowFrontend", policy => 
+                policy
+                    .WithOrigins("http://localhost:5179")
+                    .WithMethods("GET", "POST", "OPTIONS")
+                    .AllowAnyHeader());
+        });
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -68,11 +77,13 @@ public class Startup
         app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseMiddleware<JsonResponseMiddleware>();
         app.UseMiddleware<RequestSizeLimitMiddleware>();
-        
+
         app.UseHttpsRedirection();
 
         app.UseSerilogRequestLogging();
         
+        app.UseCors("AllowFrontend");
+
         app.UseRouting();
         
         app.UseEndpoints(endpoints =>
