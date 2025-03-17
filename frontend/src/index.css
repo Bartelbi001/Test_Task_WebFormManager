@@ -1,0 +1,19 @@
+@import "tailwindcss/preflight";
+@import "tailwindcss";
+@import "tailwindcss/utilities";
+
+/* Global styles */
+body {
+    @apply bg-gray-50 text-gray-900;
+}
+
+#app {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+    font-weight: normal;
+}
+
+li a {
+    @apply text-blue-500 underline hover:text-blue-600;
+}
