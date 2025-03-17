@@ -123,10 +123,9 @@ public class SubmissionControllerTests
         // Assert
         var okResult = result.Should().BeOfType<OkObjectResult>().Which;
         var value = okResult.Value.Should().NotBeNull().And.BeAssignableTo<IEnumerable<JsonElement>>().Which;
-        value.Should().NotBeEmpty(); // ✅ Теперь `NotBeEmpty()` не вызовет ошибку
+        value.Should().NotBeEmpty();
     }
-
-
+    
     [Fact]
     public async Task SearchSubmissions_Should_Return400_WhenQueryIsEmpty()
     {

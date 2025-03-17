@@ -60,9 +60,9 @@ public class SubmissionsController : ControllerBase
     {
         Log.Information("Fetching all submissions.");
 
-        var submissions = await _submissionStorage.GetAllAsync(cancellationToken).ToListAsync(cancellationToken); // ✅ Загружаем в список
+        var submissions = await _submissionStorage.GetAllAsync(cancellationToken).ToListAsync(cancellationToken);
 
-        return Ok(submissions); // ✅ Гарантированно отдаём JSON
+        return Ok(submissions);
     }
 
     /// <summary>
@@ -75,7 +75,7 @@ public class SubmissionsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SearchSubmissions([FromQuery] string query, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(query)) // ✅ Проверяем пустые строки
+        if (string.IsNullOrWhiteSpace(query))
         {
             Log.Warning("Search query is empty");
             return BadRequest("Query parameter cannot be empty.");
@@ -83,8 +83,8 @@ public class SubmissionsController : ControllerBase
 
         Log.Information("Searching submissions for query: {Query}", query);
 
-        var results = await _submissionStorage.SearchAsync(query, cancellationToken).ToListAsync(cancellationToken); // ✅ Загружаем в список
+        var results = await _submissionStorage.SearchAsync(query, cancellationToken).ToListAsync(cancellationToken);
 
-        return Ok(results); // ✅ Теперь API отдаёт корректный JSON-ответ
+        return Ok(results);
     }
 }
