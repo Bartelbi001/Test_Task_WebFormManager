@@ -27,16 +27,14 @@ public class FileSubmissionStorage : ISubmissionStorage, IAsyncDisposable
         {
             cancellationToken.ThrowIfCancellationRequested();
             Log.Information("Saving submission to {FilePath}", _filePath);
-
-            // ✅ Оптимизированный сбор данных без конфликтов имен
+            
             var submissions = new List<JsonElement>();
 
             await foreach (var item in ReadFromFileAsync(cancellationToken))
             {
                 submissions.Add(item);
             }
-
-            // ✅ Просто добавляем переданный объект, без лишнего копирования
+            
             submissions.Add(submission);
             await WriteToFileAsync(submissions, cancellationToken);
 
@@ -60,11 +58,18 @@ public class FileSubmissionStorage : ISubmissionStorage, IAsyncDisposable
     {
         Log.Information("Searching in {FilePath} for query: {Query}", _filePath, query);
 
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            yield break;
+        }
+
+        query = Uri.UnescapeDataString(query).Trim();
+
         await foreach (var submission in ReadFromFileAsync(cancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (submission.ToString().Contains(query, StringComparison.OrdinalIgnoreCase))
+            if (ContainsQuery(submission, query))
             {
                 yield return submission;
                 await Task.Yield();
@@ -127,7 +132,7 @@ public class FileSubmissionStorage : ISubmissionStorage, IAsyncDisposable
                 await JsonSerializer.SerializeAsync(memoryStream, submissions, _jsonOptions, cancellationToken);
                 await File.WriteAllBytesAsync(tempFilePath, memoryStream.ToArray(), cancellationToken);
 
-                File.Move(tempFilePath, _filePath, overwrite: true); // ✅ Атомарная операция
+                File.Move(tempFilePath, _filePath, overwrite: true);
 
                 Log.Information("File {FilePath} successfully updated.", _filePath);
                 return;
@@ -147,6 +152,22 @@ public class FileSubmissionStorage : ISubmissionStorage, IAsyncDisposable
         }
 
         throw new FileStorageException("Unable to write to file after multiple retries.");
+    }
+    
+    private static bool ContainsQuery(JsonElement submission, string query)
+    {
+        foreach (var property in submission.EnumerateObject())
+        {
+            if (property.Value.ValueKind == JsonValueKind.String)
+            {
+                var value = property.Value.GetString();
+                if (!string.IsNullOrEmpty(value) && value.Contains(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public ValueTask DisposeAsync()
